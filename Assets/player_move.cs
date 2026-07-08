@@ -2,16 +2,16 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class move_player : MonoBehaviour
+public class player_move : MonoBehaviour
 {
     [Header("移動設定")]
-    public float moveSpeed = 0.15f;
-    public float rotateSpeed = 3.0f;
+    public float moveSpeed = 3.0f;
+    public float rotateSpeed = 10.0f;
 
     [Header("Animator")]
     public Animator animator;
 
-    [Header("ダメージ設定")]
+    [Header("体力設定")]
     public int maxDamageCount = 5;
     private int damageCount = 0;
 
@@ -37,12 +37,8 @@ public class move_player : MonoBehaviour
 
     private string currentActionState = "";
 
-    private Vector3 beforePosition;
-
     void Start()
     {
-        Application.targetFrameRate = 60;
-
         if (animator == null)
         {
             animator = GetComponent<Animator>();
@@ -60,7 +56,13 @@ public class move_player : MonoBehaviour
     {
         if (isDead) return;
 
-        // 攻撃中・ダメージ中は終わるまで待つ
+        // テスト用：Hキーでダメージ
+        if (Input.GetKeyDown(KeyCode.H))
+        {
+            TakeDamage();
+        }
+
+        // 攻撃中・ダメージ中は、終わるまで移動しない
         if (isAttacking || isDamaging)
         {
             CheckActionEnd();
@@ -70,79 +72,80 @@ public class move_player : MonoBehaviour
         // 攻撃
         if (Input.GetKeyDown(KeyCode.J))
         {
-            StartAttack(Attack1);
+            Attack(Attack1);
             return;
         }
 
         if (Input.GetKeyDown(KeyCode.K))
         {
-            StartAttack(Attack2);
+            Attack(Attack2);
             return;
         }
 
         if (Input.GetKeyDown(KeyCode.L))
         {
-            StartAttack(Attack3);
+            Attack(Attack3);
             return;
         }
 
         if (Input.GetKeyDown(KeyCode.U))
         {
-            StartAttack(Attack4);
+            Attack(Attack4);
             return;
         }
 
-        // テスト用：Hキーでダメージ
-        if (Input.GetKeyDown(KeyCode.H))
-        {
-            TakeDamage();
-            return;
-        }
-
+        // 移動
         Move();
     }
 
     void Move()
     {
-        beforePosition = transform.position;
+        float horizontal = Input.GetAxisRaw("Horizontal"); // A D
+        float vertical = Input.GetAxisRaw("Vertical");     // W S
 
-        bool isMoving = false;
+        Vector3 move = new Vector3(horizontal, 0, vertical).normalized;
 
-        if (Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.W))
+        if (move.magnitude > 0.1f)
         {
-            transform.position += transform.forward * moveSpeed;
-            PlayAnimation(RunForward);
-            isMoving = true;
-        }
+            transform.position += move * moveSpeed * Time.deltaTime;
 
-        if (Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.S))
-        {
-            transform.position -= transform.forward * moveSpeed;
-            PlayAnimation(RunBack);
-            isMoving = true;
-        }
+            Quaternion targetRotation = Quaternion.LookRotation(move);
+            transform.rotation = Quaternion.Slerp(
+                transform.rotation,
+                targetRotation,
+                rotateSpeed * Time.deltaTime
+            );
 
-        if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D))
-        {
-            transform.Rotate(0f, rotateSpeed, 0f);
-            PlayAnimation(RunRight);
-            isMoving = true;
+            if (Mathf.Abs(vertical) >= Mathf.Abs(horizontal))
+            {
+                if (vertical > 0)
+                {
+                    PlayAnimation(RunForward);
+                }
+                else
+                {
+                    PlayAnimation(RunBack);
+                }
+            }
+            else
+            {
+                if (horizontal > 0)
+                {
+                    PlayAnimation(RunRight);
+                }
+                else
+                {
+                    PlayAnimation(RunLeft);
+                }
+            }
         }
-
-        if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A))
-        {
-            transform.Rotate(0f, -rotateSpeed, 0f);
-            PlayAnimation(RunLeft);
-            isMoving = true;
-        }
-
-        if (!isMoving)
+        else
         {
             PlayAnimation(Idle);
         }
     }
 
-    void StartAttack(string attackStateName)
+    void Attack(string attackStateName)
     {
         if (isDead) return;
         if (isAttacking) return;
@@ -191,6 +194,7 @@ public class move_player : MonoBehaviour
 
         AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
 
+        // 今再生しているアクションが終わったか確認
         if (stateInfo.IsName(currentActionState) &&
             stateInfo.normalizedTime >= 0.95f &&
             !animator.IsInTransition(0))
@@ -199,7 +203,7 @@ public class move_player : MonoBehaviour
             isDamaging = false;
             currentActionState = "";
 
-            // 攻撃・ダメージが終わったら行動状態に戻す
+            // 攻撃・ダメージが終わったら、行動アクションに戻る
             PlayAnimation(Idle);
         }
     }
@@ -210,31 +214,10 @@ public class move_player : MonoBehaviour
 
         AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
 
+        // 同じアニメーションを毎フレーム再生し直さない
         if (!stateInfo.IsName(stateName))
         {
             animator.CrossFade(stateName, 0.15f);
-        }
-    }
-
-    void OnCollisionEnter(Collision other)
-    {
-        if (isDead) return;
-
-        Debug.Log("object = " + other.gameObject.name);
-
-        // 床との接触ではダメージにしない
-        if (other.gameObject.name.Contains("床"))
-        {
-            return;
-        }
-
-        // 壁などにめり込まないように戻す
-        transform.position = beforePosition;
-
-        // 攻撃中以外ならダメージアクション
-        if (!isAttacking)
-        {
-            TakeDamage();
         }
     }
 }
