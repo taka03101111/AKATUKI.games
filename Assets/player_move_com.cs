@@ -1,17 +1,20 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(CharacterController))]
 public class player_move_com : MonoBehaviour
 {
     [Header("移動設定")]
-    public float moveSpeed = 8.0f;
-    public float backSpeed = 5.0f;
-    public float rotateSpeed = 180.0f;
+    public float moveSpeed = 3.0f;
+    public float rotateSpeed = 120.0f;
     public float gravity = -9.8f;
 
-    [Header("カメラ設定")]
+    [Header("視点設定")]
     public Transform viewCamera;
+    public float cameraLookSpeed = 80.0f;
+    public float minCameraAngle = -30.0f;
+    public float maxCameraAngle = 45.0f;
 
     [Header("アニメーション時間")]
     public float attackTime = 1.0f;
@@ -19,21 +22,23 @@ public class player_move_com : MonoBehaviour
 
     private Animator animator;
     private CharacterController controller;
-    private SwordAttack swordAttack;
 
     private int damageCount = 0;
     private bool isAction = false;
     private bool isDead = false;
 
+    private float cameraPitch = 0.0f;
     private float verticalVelocity = 0.0f;
 
     private string currentAnim = "";
 
     private const string IDLE = "Combat (1)";
-    private const string RUN_FORWARD = "�O�ɑ���";
-    private const string RUN_BACK = "���ɑ���";
-    private const string ATTACK_STAB = "���������U��";
-    private const string ATTACK_FULL = "�����t���U��";
+    private const string RUN_FORWARD = "前に走る";
+    private const string RUN_BACK = "後ろに走る";
+    private const string RUN_LEFT = "左に走る";
+    private const string RUN_RIGHT = "右に走る";
+    private const string ATTACK_STAB = "剣をさす攻撃";
+    private const string ATTACK_FULL = "剣をフル攻撃";
     private const string DAMAGE = "Take Damage (1)";
     private const string DEATH = "Death 01";
 
@@ -41,16 +46,10 @@ public class player_move_com : MonoBehaviour
     {
         animator = GetComponent<Animator>();
         controller = GetComponent<CharacterController>();
-        swordAttack = GetComponent<SwordAttack>();
 
-        if (viewCamera == null)
+        if (viewCamera == null && Camera.main != null)
         {
-            Transform cameraPoint = transform.Find("CameraPoint");
-
-            if (cameraPoint != null)
-            {
-                viewCamera = cameraPoint;
-            }
+            viewCamera = Camera.main.transform;
         }
 
         PlayAnim(IDLE);
@@ -58,10 +57,7 @@ public class player_move_com : MonoBehaviour
 
     void Update()
     {
-        if (isDead)
-        {
-            return;
-        }
+        if (isDead) return;
 
         if (Input.GetKeyDown(KeyCode.P))
         {
@@ -69,87 +65,107 @@ public class player_move_com : MonoBehaviour
             return;
         }
 
-        if (isAction)
-        {
-            return;
-        }
+        if (isAction) return;
 
         if (Input.GetKeyDown(KeyCode.J))
         {
-            if (swordAttack != null)
-            {
-                swordAttack.TryAttack();
-            }
-
             StartCoroutine(ActionAnimation(ATTACK_STAB, attackTime));
             return;
         }
 
         if (Input.GetKeyDown(KeyCode.K))
         {
-            if (swordAttack != null)
-            {
-                swordAttack.TryAttack();
-            }
-
             StartCoroutine(ActionAnimation(ATTACK_FULL, attackTime));
             return;
         }
 
+        LookControl();
         MoveControl();
     }
 
     void MoveControl()
     {
-        float moveInput = 0.0f;
-        float rotateInput = 0.0f;
+        Vector3 move = Vector3.zero;
+        string nextAnim = IDLE;
 
         if (Input.GetKey(KeyCode.W))
         {
-            moveInput = 1.0f;
+            move += transform.forward;
+            nextAnim = RUN_FORWARD;
         }
         else if (Input.GetKey(KeyCode.S))
         {
-            moveInput = -1.0f;
+            move -= transform.forward;
+            nextAnim = RUN_BACK;
         }
-
-        if (Input.GetKey(KeyCode.A))
+        else if (Input.GetKey(KeyCode.A))
         {
-            rotateInput = -1.0f;
+            move -= transform.right;
+            nextAnim = RUN_LEFT;
         }
         else if (Input.GetKey(KeyCode.D))
         {
-            rotateInput = 1.0f;
+            move += transform.right;
+            nextAnim = RUN_RIGHT;
         }
 
-        transform.Rotate(0, rotateInput * rotateSpeed * Time.deltaTime, 0);
-
-        string nextAnim = IDLE;
-
-        if (moveInput > 0)
+        if (move != Vector3.zero)
         {
-            nextAnim = RUN_FORWARD;
-        }
-        else if (moveInput < 0)
-        {
-            nextAnim = RUN_BACK;
+            move.Normalize();
         }
 
+        // 重力処理
         if (controller.isGrounded && verticalVelocity < 0)
         {
             verticalVelocity = -1.0f;
         }
+        else
+        {
+            verticalVelocity += gravity * Time.deltaTime;
+        }
 
-        verticalVelocity += gravity * Time.deltaTime;
-
-        float speed = moveInput >= 0 ? moveSpeed : backSpeed;
-
-        Vector3 velocity = transform.forward * moveInput * speed;
+        Vector3 velocity = move * moveSpeed;
         velocity.y = verticalVelocity;
 
+        // CharacterControllerで移動するので壁を貫通しにくい
         controller.Move(velocity * Time.deltaTime);
 
         PlayAnim(nextAnim);
+    }
+
+    void LookControl()
+    {
+        float horizontal = 0.0f;
+
+        if (Input.GetKey(KeyCode.LeftArrow))
+        {
+            horizontal = -1.0f;
+        }
+        else if (Input.GetKey(KeyCode.RightArrow))
+        {
+            horizontal = 1.0f;
+        }
+
+        transform.Rotate(0, horizontal * rotateSpeed * Time.deltaTime, 0);
+
+        if (viewCamera != null)
+        {
+            float vertical = 0.0f;
+
+            if (Input.GetKey(KeyCode.UpArrow))
+            {
+                vertical = -1.0f;
+            }
+            else if (Input.GetKey(KeyCode.DownArrow))
+            {
+                vertical = 1.0f;
+            }
+
+            cameraPitch += vertical * cameraLookSpeed * Time.deltaTime;
+            cameraPitch = Mathf.Clamp(cameraPitch, minCameraAngle, maxCameraAngle);
+
+            viewCamera.localEulerAngles = new Vector3(cameraPitch, 0, 0);
+        }
     }
 
     void TakeDamage()
@@ -176,10 +192,7 @@ public class player_move_com : MonoBehaviour
 
         yield return new WaitForSeconds(waitTime);
 
-        if (isDead)
-        {
-            yield break;
-        }
+        if (isDead) yield break;
 
         isAction = false;
         PlayAnim(IDLE);
@@ -187,15 +200,9 @@ public class player_move_com : MonoBehaviour
 
     void PlayAnim(string animName)
     {
-        if (animator == null)
-        {
-            return;
-        }
+        if (animator == null) return;
 
-        if (currentAnim == animName)
-        {
-            return;
-        }
+        if (currentAnim == animName) return;
 
         currentAnim = animName;
         animator.CrossFade(animName, 0.1f);
