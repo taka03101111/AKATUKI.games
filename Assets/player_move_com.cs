@@ -5,18 +5,18 @@ using UnityEngine;
 [RequireComponent(typeof(CharacterController))]
 public class player_move_com : MonoBehaviour
 {
-    [Header("ˆÚ“®İ’è")]
+    [Header("ç§»å‹•è¨­å®š")]
     public float moveSpeed = 3.0f;
     public float rotateSpeed = 120.0f;
     public float gravity = -9.8f;
 
-    [Header("‹“_İ’è")]
+    [Header("è¦–ç‚¹è¨­å®š")]
     public Transform viewCamera;
     public float cameraLookSpeed = 80.0f;
     public float minCameraAngle = -30.0f;
     public float maxCameraAngle = 45.0f;
 
-    [Header("ƒAƒjƒ[ƒVƒ‡ƒ“ŠÔ")]
+    [Header("ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³æ™‚é–“")]
     public float attackTime = 1.0f;
     public float damageTime = 0.8f;
 
@@ -33,12 +33,12 @@ public class player_move_com : MonoBehaviour
     private string currentAnim = "";
 
     private const string IDLE = "Combat (1)";
-    private const string RUN_FORWARD = "‘O‚É‘–‚é";
-    private const string RUN_BACK = "Œã‚ë‚É‘–‚é";
-    private const string RUN_LEFT = "¶‚É‘–‚é";
-    private const string RUN_RIGHT = "‰E‚É‘–‚é";
-    private const string ATTACK_STAB = "Œ•‚ğ‚³‚·UŒ‚";
-    private const string ATTACK_FULL = "Œ•‚ğƒtƒ‹UŒ‚";
+    private const string RUN_FORWARD = "å‰ã«èµ°ã‚‹";
+    private const string RUN_BACK = "å¾Œã‚ã«èµ°ã‚‹";
+    private const string RUN_LEFT = "å·¦ã«èµ°ã‚‹";
+    private const string RUN_RIGHT = "å³ã«èµ°ã‚‹";
+    private const string ATTACK_STAB = "å‰£ã‚’ã•ã™æ”»æ’ƒ";
+    private const string ATTACK_FULL = "å‰£ã‚’ãƒ•ãƒ«æ”»æ’ƒ";
     private const string DAMAGE = "Take Damage (1)";
     private const string DEATH = "Death 01";
 
@@ -114,7 +114,7 @@ public class player_move_com : MonoBehaviour
             move.Normalize();
         }
 
-        // d—Íˆ—
+        // é‡åŠ›å‡¦ç†
         if (controller.isGrounded && verticalVelocity < 0)
         {
             verticalVelocity = -1.0f;
@@ -127,7 +127,7 @@ public class player_move_com : MonoBehaviour
         Vector3 velocity = move * moveSpeed;
         velocity.y = verticalVelocity;
 
-        // CharacterController‚ÅˆÚ“®‚·‚é‚Ì‚Å•Ç‚ğŠÑ’Ê‚µ‚É‚­‚¢
+        // CharacterControllerã§ç§»å‹•ã™ã‚‹ã®ã§å£ã‚’è²«é€šã—ã«ãã„
         controller.Move(velocity * Time.deltaTime);
 
         PlayAnim(nextAnim);
